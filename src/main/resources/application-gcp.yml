@@ -1,0 +1,7 @@
+spring:
+  profiles:
+    include: gcp
+cloud:
+  gcp:
+    project-id: ${GCP_PROJECT:}
+

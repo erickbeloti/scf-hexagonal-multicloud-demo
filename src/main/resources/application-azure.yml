@@ -1,0 +1,10 @@
+spring:
+  profiles:
+    include: azure
+azure:
+  cosmos:
+    endpoint: ${AZURE_COSMOS_ENDPOINT:}
+    key: ${AZURE_COSMOS_KEY:}
+    db: ${AZURE_COSMOS_DB:tasksdb}
+    container: ${AZURE_COSMOS_CONTAINER:tasks}
+

@@ -1,0 +1,8 @@
+spring:
+  profiles:
+    include: aws
+aws:
+  region: ${AWS_REGION:us-east-1}
+  dynamodb:
+    table: ${DDB_TABLE:Tasks}
+
