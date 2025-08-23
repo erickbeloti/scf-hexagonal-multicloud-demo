@@ -15,7 +15,7 @@ com.example.tasks
 │  ├─ port/outbound/       // TaskRepositoryPort, ClockPort, IdGeneratorPort
 │  └─ service/             // TaskService
 ├─ adapters/
-│  ├─ inbound/http/        // Spring Cloud Function handlers + controller
+│  ├─ inbound/http/        // Spring Cloud Function handlers (HTTP mapping)
 │  └─ outbound/
 │     ├─ local/            // InMemoryTaskRepository (@Profile("local"))
 │     ├─ gcp/              // FirestoreTaskRepository (@Profile("gcp"))
@@ -42,13 +42,15 @@ make run
 
 Active profile: `local`. In‑memory repository.
 
-### HTTP endpoints (via Spring Cloud Function HTTP adapter)
+### HTTP endpoints (Spring Cloud Function HTTP mapping)
 
-- POST `/functions/createTask`
-- PUT `/functions/updateTask/{id}`
-- GET `/functions/getTaskById/{id}`
+Base path: `/functions` (configured via `spring.cloud.function.web.path`).
+
+- POST `/functions/createTask`  (body: CreateTaskRequest)
+- POST `/functions/updateTask?id={id}`  (body: UpdateTaskRequest)
+- GET `/functions/getTaskById?id={id}`
 - GET `/functions/listTasksByUser?page=0&size=20`
-- DELETE `/functions/deleteTask/{id}`
+- DELETE `/functions/deleteTask?id={id}`
 
 Header: `X-User-Id: <user>` is required.
 
@@ -61,10 +63,10 @@ curl -s -X POST localhost:8080/functions/createTask \
   -d '{"description":"Buy milk","priority":"HIGH"}'
 
 # Get
-curl -s -H 'X-User-Id: u1' localhost:8080/functions/getTaskById/<id>
+curl -s -H 'X-User-Id: u1' 'localhost:8080/functions/getTaskById?id=<id>'
 
 # Update
-curl -s -X PUT localhost:8080/functions/updateTask/<id> \
+curl -s -X POST 'localhost:8080/functions/updateTask?id=<id>' \
   -H 'Content-Type: application/json' -H 'X-User-Id: u1' \
   -d '{"status":"COMPLETED"}'
 
@@ -72,7 +74,7 @@ curl -s -X PUT localhost:8080/functions/updateTask/<id> \
 curl -s -H 'X-User-Id: u1' 'localhost:8080/functions/listTasksByUser?page=0&size=10'
 
 # Delete
-curl -i -X DELETE -H 'X-User-Id: u1' localhost:8080/functions/deleteTask/<id>
+curl -i -X DELETE -H 'X-User-Id: u1' 'localhost:8080/functions/deleteTask?id=<id>'
 ```
 
 ## Switch cloud adapters
@@ -127,7 +129,6 @@ make test
 ```
 
 ## Known limitations
-- Simplified HTTP routing via controller calling function beans.
 - Cloud adapters are minimal and omit infra provisioning and retries.
 - Pagination for AWS/Azure is simplified.
 - Auth is header‑based simulation.

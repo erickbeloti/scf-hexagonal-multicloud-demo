@@ -2,7 +2,6 @@ package com.example.tasks.integration;
 
 import com.example.tasks.TasksApplication;
 import com.example.tasks.adapters.inbound.http.dto.TaskDtos;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
@@ -21,9 +20,6 @@ public class LocalProfileIntegrationTest {
     @Autowired
     WebTestClient client;
 
-    @Autowired
-    ObjectMapper mapper;
-
     @Test
     void create_and_get_task() {
         TaskDtos.CreateTaskRequest req = new TaskDtos.CreateTaskRequest("hello", com.example.tasks.domain.model.Priority.MEDIUM);
@@ -37,7 +33,7 @@ public class LocalProfileIntegrationTest {
                 .returnResult().getResponseBody();
         assertThat(createResp).isNotNull();
 
-        client.get().uri("/functions/getTaskById/" + createResp.id())
+        client.get().uri("/functions/getTaskById?id=" + createResp.id())
                 .header("X-User-Id", "u1")
                 .exchange()
                 .expectStatus().isOk()

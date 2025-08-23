@@ -9,21 +9,25 @@ import com.example.tasks.application.port.inbound.GetTaskByIdUseCase;
 import com.example.tasks.application.port.inbound.ListTasksByUserUseCase;
 import com.example.tasks.application.port.inbound.UpdateTaskUseCase;
 import com.example.tasks.domain.model.Task;
-import jakarta.validation.Valid;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static com.example.tasks.adapters.inbound.http.TaskMappers.toResponse;
 
 @Component
 public class TaskFunctionHandlers {
+
+    private static final String USER_HEADER = "X-User-Id";
 
     private final CreateTaskUseCase createTask;
     private final UpdateTaskUseCase updateTask;
@@ -44,51 +48,76 @@ public class TaskFunctionHandlers {
     }
 
     @Bean
-    public Function<AuthorizedRequest<CreateTaskRequest>, ResponseEntity<TaskResponse>> createTask() {
-        return req -> {
-            CreateTaskRequest body = req.body();
-            Task draft = new Task(null, req.userId(), body.description(), body.priority(), null, req.now(), req.now());
+    public Function<Message<CreateTaskRequest>, Message<ResponseEntity<TaskResponse>>> createTask() {
+        return msg -> {
+            String userId = msg.getHeaders().get(USER_HEADER, String.class);
+            CreateTaskRequest body = msg.getPayload();
+            Task draft = new Task(null, userId, body.description(), body.priority(), null, Instant.now(), Instant.now());
             Task created = createTask.create(draft);
-            return new ResponseEntity<>(toResponse(created), HttpStatus.CREATED);
+            ResponseEntity<TaskResponse> resp = new ResponseEntity<>(toResponse(created), HttpStatus.CREATED);
+            return MessageBuilder.withPayload(resp).copyHeaders(msg.getHeaders()).build();
         };
     }
 
     @Bean
-    public Function<AuthorizedRequest<UpdateTaskRequest>, ResponseEntity<TaskResponse>> updateTask() {
-        return req -> {
-            UpdateTaskRequest body = req.body();
-            Task upd = new Task(null, req.userId(), body.description(), body.priority(), body.status(), req.now(), req.now());
-            Task updated = updateTask.update(req.pathParam("id"), req.userId(), upd);
-            if (updated == null) return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-            return ResponseEntity.ok(toResponse(updated));
+    public Function<Message<UpdateTaskRequest>, Message<ResponseEntity<TaskResponse>>> updateTask() {
+        return msg -> {
+            String userId = msg.getHeaders().get(USER_HEADER, String.class);
+            String id = query(msg.getHeaders(), "id");
+            UpdateTaskRequest body = msg.getPayload();
+            Task upd = new Task(null, userId, body.description(), body.priority(), body.status(), Instant.now(), Instant.now());
+            Task updated = updateTask.update(id, userId, upd);
+            ResponseEntity<TaskResponse> resp = (updated == null)
+                    ? new ResponseEntity<>(HttpStatus.NOT_FOUND)
+                    : ResponseEntity.ok(toResponse(updated));
+            return MessageBuilder.withPayload(resp).copyHeaders(msg.getHeaders()).build();
         };
     }
 
     @Bean
-    public Function<AuthorizedRequest<Void>, ResponseEntity<TaskResponse>> getTaskById() {
-        return req -> {
-            Optional<Task> t = getTask.get(req.pathParam("id"), req.userId());
-            return t.map(value -> ResponseEntity.ok(toResponse(value)))
+    public Function<Message<Void>, Message<ResponseEntity<TaskResponse>>> getTaskById() {
+        return msg -> {
+            String userId = msg.getHeaders().get(USER_HEADER, String.class);
+            String id = query(msg.getHeaders(), "id");
+            Optional<Task> t = getTask.get(id, userId);
+            ResponseEntity<TaskResponse> resp = t.map(value -> ResponseEntity.ok(toResponse(value)))
                     .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+            return MessageBuilder.withPayload(resp).copyHeaders(msg.getHeaders()).build();
         };
     }
 
     @Bean
-    public Function<AuthorizedRequest<Void>, ResponseEntity<List<TaskResponse>>> listTasksByUser() {
-        return req -> {
-            int page = Integer.parseInt(req.queryParamOrDefault("page", "0"));
-            int size = Integer.parseInt(req.queryParamOrDefault("size", "20"));
-            List<TaskResponse> list = listTasks.list(req.userId(), page, size).stream().map(TaskMappers::toResponse).toList();
-            return ResponseEntity.ok(list);
+    public Function<Message<Void>, Message<ResponseEntity<List<TaskResponse>>>> listTasksByUser() {
+        return msg -> {
+            String userId = msg.getHeaders().get(USER_HEADER, String.class);
+            int page = Integer.parseInt(queryOrDefault(msg.getHeaders(), "page", "0"));
+            int size = Integer.parseInt(queryOrDefault(msg.getHeaders(), "size", "20"));
+            List<TaskResponse> list = listTasks.list(userId, page, size).stream().map(TaskMappers::toResponse).toList();
+            ResponseEntity<List<TaskResponse>> resp = ResponseEntity.ok(list);
+            return MessageBuilder.withPayload(resp).copyHeaders(msg.getHeaders()).build();
         };
     }
 
     @Bean
-    public Function<AuthorizedRequest<Void>, ResponseEntity<Void>> deleteTask() {
-        return req -> {
-            boolean deleted = deleteTask.delete(req.pathParam("id"), req.userId());
-            return deleted ? new ResponseEntity<>(HttpStatus.NO_CONTENT) : new ResponseEntity<>(HttpStatus.NOT_FOUND);
+    public Function<Message<Void>, Message<ResponseEntity<Void>>> deleteTask() {
+        return msg -> {
+            String userId = msg.getHeaders().get(USER_HEADER, String.class);
+            String id = query(msg.getHeaders(), "id");
+            boolean deleted = deleteTask.delete(id, userId);
+            ResponseEntity<Void> resp = deleted ? new ResponseEntity<>(HttpStatus.NO_CONTENT) : new ResponseEntity<>(HttpStatus.NOT_FOUND);
+            return MessageBuilder.withPayload(resp).copyHeaders(msg.getHeaders()).build();
         };
+    }
+
+    private String queryOrDefault(Map<String, Object> headers, String key, String def) {
+        String v = query(headers, key);
+        return v != null ? v : def;
+    }
+
+    private String query(Map<String, Object> headers, String key) {
+        Object v = headers.get(key);
+        if (v == null) v = headers.get("http_query_" + key);
+        if (v == null) v = headers.get("query_" + key);
+        return v != null ? v.toString() : null;
     }
 }
-

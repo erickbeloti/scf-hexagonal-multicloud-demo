@@ -3,6 +3,10 @@ spring:
     web-application-type: reactive
   application:
     name: tasks
+  cloud:
+    function:
+      web:
+        path: /functions
 server:
   port: 8080
 
