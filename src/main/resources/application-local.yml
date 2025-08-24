@@ -1,0 +1,8 @@
+spring:
+  profiles: local
+  main:
+    web-application-type: servlet
+  cloud:
+    gcp:
+      firestore:
+        enabled: false

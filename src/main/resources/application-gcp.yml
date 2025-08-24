@@ -1,0 +1,6 @@
+spring:
+  profiles: gcp
+  cloud:
+    gcp:
+      firestore:
+        project-id: ${GCP_PROJECT}
