@@ -1,0 +1,4 @@
+spring:
+  cloud:
+    function:
+      definition: createTask;updateTask;getTaskById;listTasksByUser;deleteTask
