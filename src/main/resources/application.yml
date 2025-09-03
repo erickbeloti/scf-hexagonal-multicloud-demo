@@ -1,4 +1,10 @@
 spring:
   cloud:
     function:
-      definition: createTask;updateTask;getTaskById;listTasksByUser;deleteTask
+      definition: functionRouter
+  profiles:
+    active: local
+logging:
+  level:
+    com.example.tasks: DEBUG
+    org.springframework.cloud.function: DEBUG

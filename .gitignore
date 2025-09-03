@@ -63,6 +63,20 @@ jacoco.exec
 .env
 *.env
 
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/terraform.tfvars
+**/plan_*
+**/*.zip
+
+# Cloud provider credentials
+**/gcp-key.json
+**/aws-credentials
+**/azure-credentials
+
 # Others
 *.swp
 *.swo

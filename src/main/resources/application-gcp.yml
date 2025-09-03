@@ -1,6 +1,9 @@
 spring:
-  profiles: gcp
   cloud:
     gcp:
       firestore:
-        project-id: ${GCP_PROJECT}
+        project-id: ${GOOGLE_CLOUD_PROJECT}
+
+functions:
+  provider: gcp
+  status-header: statusCode

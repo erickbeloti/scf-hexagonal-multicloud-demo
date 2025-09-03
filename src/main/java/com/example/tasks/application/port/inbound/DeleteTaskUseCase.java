@@ -1,5 +1,7 @@
 package com.example.tasks.application.port.inbound;
 
+import com.example.tasks.domain.*;
+
 public interface DeleteTaskUseCase {
-    void deleteTask(String id, String userId);
+    void deleteTask(TaskId id, UserId userId);
 }

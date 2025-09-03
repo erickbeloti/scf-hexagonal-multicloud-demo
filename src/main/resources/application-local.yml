@@ -1,8 +1,25 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8080
+
 spring:
-  profiles: local
-  main:
-    web-application-type: servlet
   cloud:
-    gcp:
-      firestore:
-        enabled: false
+    function:
+      definition: functionRouter
+
+functions:
+  provider: local
+  status-header: statusCode
+
+logging:
+  level:
+    com.example.tasks: DEBUG
+    org.springframework.cloud.function: DEBUG

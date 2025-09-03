@@ -1,7 +1,7 @@
 package com.example.tasks.application.port.inbound;
 
-import com.example.tasks.domain.Task;
+import com.example.tasks.domain.*;
 
 public interface GetTaskUseCase {
-    Task getTask(String id, String userId);
+    Task getTask(TaskId id, UserId userId);
 }
