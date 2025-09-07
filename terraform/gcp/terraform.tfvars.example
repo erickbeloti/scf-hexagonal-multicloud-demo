@@ -1,0 +1,10 @@
+# terraform.tfvars.example
+# Copy this file to terraform.tfvars and fill in your values
+
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+environment = "dev"
+
+# Optional overrides
+# function_timeout = 60
+# function_memory = "512Mi"

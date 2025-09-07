@@ -1,0 +1,25 @@
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8080
+
+spring:
+  cloud:
+    function:
+      definition: functionRouter
+
+functions:
+  provider: local
+  status-header: statusCode
+
+logging:
+  level:
+    com.example.tasks: DEBUG
+    org.springframework.cloud.function: DEBUG

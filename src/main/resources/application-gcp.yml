@@ -1,0 +1,9 @@
+spring:
+  cloud:
+    gcp:
+      firestore:
+        project-id: ${GOOGLE_CLOUD_PROJECT}
+
+functions:
+  provider: gcp
+  status-header: statusCode
