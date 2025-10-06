@@ -1,0 +1,7 @@
+aws:
+  dynamodb:
+    table-name: ${AWS_DYNAMODB_TABLE_NAME:tasks-dev}
+
+functions:
+  provider: aws
+  status-header: statusCode

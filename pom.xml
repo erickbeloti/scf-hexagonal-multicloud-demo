@@ -9,12 +9,13 @@
     </parent>
     <groupId>com.example</groupId>
     <artifactId>tasks</artifactId>
-    <version>0.1-gcp</version>
+    <version>0.1-multicloud</version>
     <properties>
         <java.version>21</java.version>
         <spring.cloud.version>2025.0.0</spring.cloud.version>
         <spring-cloud-gcp.version>7.2.0</spring-cloud-gcp.version>
         <spring-cloud-function.version>4.3.0</spring-cloud-function.version>
+        <spring-cloud-aws.version>3.4.0</spring-cloud-aws.version>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -29,6 +30,13 @@
                 <groupId>com.google.cloud</groupId>
                 <artifactId>spring-cloud-gcp-dependencies</artifactId>
                 <version>${spring-cloud-gcp.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.awspring.cloud</groupId>
+                <artifactId>spring-cloud-aws-dependencies</artifactId>
+                <version>${spring-cloud-aws.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -57,6 +65,11 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>spring-cloud-gcp-starter-firestore</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.awspring.cloud</groupId>
+            <artifactId>spring-cloud-aws-starter-dynamodb</artifactId>
             <scope>provided</scope>
         </dependency>
 
@@ -137,6 +150,75 @@
                             <functionTarget>org.springframework.cloud.function.adapter.gcp.GcfJarLauncher</functionTarget>
                             <port>8080</port>
                         </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>aws</id>
+            <properties>
+                <spring.profiles.active>aws</spring.profiles.active>
+                <classifier>aws</classifier>
+                <aws-lambda-java-core.version>1.2.3</aws-lambda-java-core.version>
+                <aws-lambda-java-events.version>3.14.0</aws-lambda-java-events.version>
+                <spring-boot-thin-layout.version>1.0.31.RELEASE</spring-boot-thin-layout.version>
+            </properties>
+            <dependencies>
+                <!-- Override scope for AWS dependencies to make them available at runtime -->
+                <dependency>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-function-adapter-aws</artifactId>
+                    <scope>compile</scope>
+                </dependency>
+                <dependency>
+                    <groupId>io.awspring.cloud</groupId>
+                    <artifactId>spring-cloud-aws-starter-dynamodb</artifactId>
+                    <scope>compile</scope>
+                </dependency>
+                <dependency>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-lambda-java-core</artifactId>
+                    <version>${aws-lambda-java-core.version}</version>
+                </dependency>
+                <dependency>
+                    <groupId>com.amazonaws</groupId>
+                    <artifactId>aws-lambda-java-events</artifactId>
+                    <version>${aws-lambda-java-events.version}</version>
+                </dependency>
+            </dependencies>
+            <build>
+                <finalName>${project.artifactId}-${project.version}</finalName>
+                <plugins>
+                    <!-- Spring Boot Maven Plugin for creating the regular executable jar -->
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.springframework.boot.experimental</groupId>
+                                <artifactId>spring-boot-thin-layout</artifactId>
+                                <version>${spring-boot-thin-layout.version}</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-shade-plugin</artifactId>
+                        <version>3.5.2</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>shade</goal>
+                                </goals>
+                                <configuration>
+                                    <createDependencyReducedPom>false</createDependencyReducedPom>
+                                    <shadedArtifactAttached>true</shadedArtifactAttached>
+                                    <shadedClassifierName>aws</shadedClassifierName>
+                                    <outputDirectory>target/deploy</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
                     </plugin>
                 </plugins>
             </build>

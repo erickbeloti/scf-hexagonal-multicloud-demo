@@ -7,6 +7,7 @@ set -e
 # Configuration
 DEFAULT_LOCAL_URL="http://localhost:8080"
 DEFAULT_GCP_URL=""
+DEFAULT_AWS_URL=""
 FUNCTION_URL=""
 TEST_MODE=""
 
@@ -55,6 +56,11 @@ detect_test_environment() {
             get_gcp_function_url
             print_info "Testing mode: GCP ($FUNCTION_URL)"
             ;;
+        "aws")
+            TEST_MODE="aws"
+            get_aws_function_url
+            print_info "Testing mode: AWS ($FUNCTION_URL)"
+            ;;
         "auto")
             # Try to detect automatically
             if check_local_server; then
@@ -64,16 +70,20 @@ detect_test_environment() {
             elif get_gcp_function_url; then
                 TEST_MODE="gcp"
                 print_info "Auto-detected mode: GCP ($FUNCTION_URL)"
+            elif get_aws_function_url; then
+                TEST_MODE="aws"
+                print_info "Auto-detected mode: AWS ($FUNCTION_URL)"
             else
                 print_error "Could not detect test environment."
                 print_info "Make sure either:"
                 print_info "  - Local server is running: mvn spring-boot:run -Dspring.profiles.active=local"
                 print_info "  - GCP function is deployed: cd terraform/gcp && terraform apply"
+                print_info "  - AWS function is deployed: cd terraform/aws && terraform apply"
                 exit 1
             fi
             ;;
         *)
-            print_error "Invalid test mode: $mode. Use 'local', 'gcp', or 'auto'"
+            print_error "Invalid test mode: $mode. Use 'local', 'gcp', 'aws', or 'auto'"
             exit 1
             ;;
     esac
@@ -99,6 +109,21 @@ get_gcp_function_url() {
     return 0
 }
 
+get_aws_function_url() {
+    if [ -d "terraform/aws" ]; then
+        cd terraform/aws
+        FUNCTION_URL=$(terraform output -raw function_url 2>/dev/null || echo "")
+        cd - > /dev/null
+    fi
+
+    if [ -z "$FUNCTION_URL" ]; then
+        print_warning "Could not get AWS function URL from Terraform."
+        return 1
+    fi
+
+    return 0
+}
+
 call_function() {
     local function_name=$1
     local payload=$2
@@ -106,8 +131,10 @@ call_function() {
 
     if [ "$TEST_MODE" = "local" ]; then
         call_function_local "$function_name" "$payload" "$expected_status"
-    else
+    elif [ "$TEST_MODE" = "gcp" ]; then
         call_function_gcp "$function_name" "$payload" "$expected_status"
+    else
+        call_function_aws "$function_name" "$payload" "$expected_status"
     fi
 }
 
@@ -138,6 +165,20 @@ call_function_gcp() {
         -d "$payload")
 
     parse_response_and_check_status_gcp "$function_name" "$expected_status"
+}
+
+call_function_aws() {
+    local function_name=$1
+    local payload=$2
+    local expected_status=${3:-200}
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X POST "$FUNCTION_URL" \
+        -H "Content-Type: application/json" \
+        -H "function.name: $function_name" \
+        -d "$payload")
+
+    parse_response_and_check_status_aws "$function_name" "$expected_status"
 }
 
 parse_response_and_check_status_local() {
@@ -183,14 +224,31 @@ parse_response_and_check_status_gcp() {
     fi
 }
 
+parse_response_and_check_status_aws() {
+    local function_name=$1
+    local expected_status=$2
+
+    http_code=$(echo "$response" | tail -n1)
+    response_body=$(echo "$response" | head -n -1)
+
+    # For AWS, check HTTP status code
+    if [ "$http_code" -eq "$expected_status" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 parse_response_and_check_status() {
     local function_name=$1
     local expected_status=$2
 
     if [ "$TEST_MODE" = "local" ]; then
         parse_response_and_check_status_local "$function_name" "$expected_status"
-    else
+    elif [ "$TEST_MODE" = "gcp" ]; then
         parse_response_and_check_status_gcp "$function_name" "$expected_status"
+    else
+        parse_response_and_check_status_aws "$function_name" "$expected_status"
     fi
 }
 
@@ -211,6 +269,15 @@ validate_test_environment() {
                 print_info "Make sure: cd terraform/gcp && terraform apply"
             else
                 print_success "GCP function is accessible"
+            fi
+            ;;
+        "aws")
+            # Test AWS function accessibility with a simple request
+            if ! curl -s -f "$FUNCTION_URL" > /dev/null 2>&1; then
+                print_warning "AWS function may not be accessible or deployed"
+                print_info "Make sure: cd terraform/aws && terraform apply"
+            else
+                print_success "AWS function is accessible"
             fi
             ;;
     esac
@@ -251,17 +318,20 @@ print_test_summary() {
 }
 
 show_usage() {
-    echo "Usage: $0 [local|gcp|auto]"
+    echo "Usage: $0 [local|gcp|aws|auto]"
     echo ""
     echo "Test modes:"
     echo "  local  - Test against local Spring Boot server (http://localhost:8080)"
     echo "           Prerequisites: mvn spring-boot:run -Dspring.profiles.active=local"
     echo "  gcp    - Test against deployed GCP Cloud Function"
     echo "           Prerequisites: cd terraform/gcp && terraform apply"
+    echo "  aws    - Test against deployed AWS Lambda Function"
+    echo "           Prerequisites: cd terraform/aws && terraform apply"
     echo "  auto   - Auto-detect available environment (default)"
     echo ""
     echo "Examples:"
     echo "  $0 local   # Test locally (server must be running)"
     echo "  $0 gcp     # Test GCP deployment"
+    echo "  $0 aws     # Test AWS deployment"
     echo "  $0         # Auto-detect environment"
 }

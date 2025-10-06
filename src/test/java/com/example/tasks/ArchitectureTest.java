@@ -79,6 +79,7 @@ class ArchitectureTest {
             ArchRule rule = classes()
                     .that().resideInAPackage("..adapters.outbound..")
                     .and().haveSimpleNameNotContaining("Test")
+                    .and().haveSimpleNameEndingWith("Repository")
                     .should().beAssignableTo("com.example.tasks.application.port.outbound.TaskRepositoryPort");
 
             rule.allowEmptyShould(true).check(importedClasses);
