@@ -1,254 +1,232 @@
-# Task Management System - Hexagonal Architecture Multi-Cloud Demo
+# Spring Cloud Function Multi-Cloud Demo - Hexagonal Architecture
 
-A Spring Boot serverless application demonstrating Hexagonal Architecture (Ports and Adapters) and Domain-Driven Design (DDD) principles across multiple cloud providers. Currently implemented for Google Cloud Platform with plans to expand to AWS and Azure.
+[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://www.oracle.com/java/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Spring Cloud Function](https://img.shields.io/badge/Spring%20Cloud%20Function-4.3.0-blue.svg)](https://spring.io/projects/spring-cloud-function)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+A comprehensive demonstration of **true cloud portability** using Spring Cloud Function and Hexagonal Architecture. This project shows how the same business logic can run identically across multiple cloud providers with zero domain code changes.
+
+## 🎯 Project Goals
+
+- **Demonstrate Cloud Portability** - Same business logic runs on GCP, AWS, and Azure
+- **Showcase Hexagonal Architecture** - Clean separation between domain, application, and infrastructure
+- **Implement DDD Principles** - Rich domain models with embedded business rules
+- **Prove SOLID Design** - Maintainable, testable, and extensible code
+- **Enable Multi-Cloud Deployment** - Infrastructure as Code for each cloud provider
 
 ## 🏗️ Architecture Overview
 
-This project implements:
-- **Hexagonal Architecture** with clear separation between domain, application, and infrastructure layers
-- **Domain-Driven Design** with rich domain models and business rules
-- **SOLID principles** throughout the codebase
-- **Multi-cloud serverless deployment** using Spring Cloud Functions (currently GCP)
-- **Comprehensive testing** including architecture validation and business rules
-- **Environment-agnostic testing** supporting both local and deployed testing
+This project implements a **Task Management System** using:
 
-### Domain Rules Implemented
+- **Hexagonal Architecture** (Ports and Adapters pattern)
+- **Domain-Driven Design** with rich domain models
+- **Spring Cloud Function** for cloud-agnostic serverless deployment
+- **Infrastructure as Code** with Terraform
+- **Comprehensive Testing** including architecture validation
 
-**Create Rules:**
-- User cannot create more than 5 high-priority tasks per day
-- Task description must be unique per user per day
-- User cannot have more than 50 open tasks
-- Task must have valid priority (LOW, MEDIUM, HIGH)
+### Package Structure
 
-**Read Rules:**
-- User can only read their own tasks
+```
+src/main/java/com/example/tasks/
+├── domain/                          # Core business logic (cloud-agnostic)
+│   ├── Task.java                   # Rich domain aggregate with business rules
+│   ├── TaskId.java, UserId.java    # Value objects
+│   ├── Priority.java, Status.java  # Domain enums
+│   └── exception/                  # Domain exceptions
+├── application/                     # Use cases & orchestration
+│   ├── port/
+│   │   ├── inbound/                # What the app offers (Use Cases)
+│   │   └── outbound/               # What the app needs (Repository)
+│   └── service/
+│       └── TaskService.java        # Business logic orchestration
+└── adapters/                        # Infrastructure concerns
+    ├── inbound/
+    │   └── functions/
+    │       ├── TaskFunctions.java   # Spring Cloud Function HTTP adapter
+    │       └── dto/                 # Request/Response DTOs
+    └── outbound/
+        ├── gcp/                    # Google Cloud Firestore implementation
+        ├── aws/                    # AWS DynamoDB implementation
+        └── local/                  # In-memory implementation for testing
+```
 
-**Update Rules:**
-- Completed tasks cannot be updated
+## 💼 Business Rules Implemented
 
-**Delete Rules:**
-- User can only delete their own tasks
+The Task Management System enforces these domain rules across all cloud providers:
+
+### Create Rules
+- ✅ User cannot create more than **5 high-priority tasks per day**
+- ✅ Task description must be **unique per user per day**
+- ✅ User cannot have more than **50 open tasks**
+- ✅ Task must have valid priority (LOW, MEDIUM, HIGH)
+
+### Read Rules
+- ✅ User can only **read their own tasks**
+
+### Update Rules
+- ✅ **Completed tasks cannot be updated**
+
+### Delete Rules
+- ✅ User can only **delete their own tasks**
+
+## 🌥️ Multi-Cloud Support
+
+| Cloud Provider | Status | Runtime | Database | Infrastructure |
+|---------------|--------|---------|----------|----------------|
+| **Google Cloud Platform** | ✅ Implemented | Cloud Functions Gen2 | Firestore | Terraform |
+| **Amazon Web Services** | ✅ Implemented | Lambda | DynamoDB | Terraform |
+| **Microsoft Azure** | 🚧 Planned | Functions | Cosmos DB | Terraform |
+
+### Cloud-Specific Implementations
+
+#### Google Cloud Platform
+- **Runtime**: Cloud Functions (2nd Gen) with Java 21
+- **Database**: Firestore with automatic indexing
+- **Infrastructure**: Terraform with Cloud Build integration
+- **Entry Point**: `GcfJarLauncher`
+
+#### Amazon Web Services  
+- **Runtime**: Lambda with Java 21
+- **Database**: DynamoDB with Global Secondary Index
+- **Infrastructure**: Terraform with API Gateway integration
+- **Entry Point**: `FunctionInvoker::handleRequest`
 
 ## 📋 Prerequisites
 
 - **Java 21** or higher
-- **Maven 3.6+**
-- **Google Cloud CLI** (`gcloud`) for GCP deployment
-- **Terraform** for infrastructure deployment
+- **Maven 3.8+**
+- **Cloud CLI Tools**:
+  - Google Cloud CLI (`gcloud`) for GCP deployment
+  - AWS CLI (`aws`) for AWS deployment
+- **Terraform 1.0+** for infrastructure deployment
 
 ## 🚀 Quick Start
 
-### 1. Build the Application
+### 1. Clone and Build
 
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd scf-hexagonal-multicloud-demo
-
-# Build the application
-mvn clean compile
+mvn clean test
 ```
 
-### 2. Run Tests
+### 2. Run Locally
 
 ```bash
-# Run all unit and architecture tests (no server required)
-mvn test
-```
-
-### 3. Local Development and Integration Testing
-
-**Start the application:**
-```bash
+# Start local server
 mvn spring-boot:run -Dspring.profiles.active=local
-```
 
-**Run integration tests** (in another terminal):
-```bash
-# Test basic CRUD functions (requires running server)
+# Test the functions
 ./scripts/test-functions.sh local
-
-# Test business rules (requires running server)
 ./scripts/test-business-rules.sh local
-
-# Run all integration test suites
-./scripts/run-tests.sh local
 ```
 
-## ☁️ GCP Deployment with Terraform
+### 3. Deploy to Cloud
 
-### Prerequisites
-
-1. **Setup GCP Project**:
-   ```bash
-   # Login to GCP
-   gcloud auth login
-   gcloud auth application-default login
-   
-   # Set your project ID
-   export GOOGLE_CLOUD_PROJECT="your-project-id"
-   gcloud config set project $GOOGLE_CLOUD_PROJECT
-   
-   # Enable billing for your project (required)
-   ```
-
-2. **Install Terraform**: Download from https://terraform.io/downloads
-
-### Deploy Infrastructure
+#### Google Cloud Platform
 
 ```bash
-# Step 1: Build the application for GCP
+# Build for GCP
 mvn clean package -Pgcp
 
-# Step 2: Navigate to GCP terraform directory
+# Deploy infrastructure
 cd terraform/gcp
-
-# Step 3: Create terraform.tfvars with your project settings
-cat > terraform.tfvars << EOF
-project_id = "your-gcp-project-id"
-region = "us-central1"
-environment = "dev"
-EOF
-
-# Step 4: Initialize Terraform
 terraform init
-
-# Step 5: Plan deployment
-terraform plan
-
-# Step 6: Apply infrastructure
 terraform apply
+
+# Test deployment
+cd ../..
+./scripts/test-functions.sh gcp
+./scripts/test-business-rules.sh gcp
 ```
 
-**Important**: Always build the application first before running Terraform. The deployment expects the JAR file to exist at `target/tasks-0.1-gcp.jar`.
+#### Amazon Web Services
+
+```bash
+# Build for AWS
+mvn clean package -Paws
+
+# Deploy infrastructure
+cd terraform/aws
+terraform init
+terraform apply
+
+# Test deployment
+cd ../..
+./scripts/test-functions.sh aws
+./scripts/test-business-rules.sh aws
+```
 
 ## 🧪 Testing
 
-The project includes a comprehensive testing framework that works with both local and deployed environments. **Important**: For both local and GCP testing, the target environment must be running before executing tests.
-
-### Testing Locally
-
-**Prerequisites**: Start the application first
+### Unit Tests
 ```bash
-# Terminal 1: Start the application (required)
+mvn test
+```
+
+### Architecture Tests
+```bash
+mvn test -Dtest=ArchitectureTest
+```
+
+### Integration Tests (Local)
+```bash
+# Start application locally
 mvn spring-boot:run -Dspring.profiles.active=local
+
+# In another terminal
+./scripts/test-functions.sh local
+./scripts/test-business-rules.sh local
 ```
 
-**Then run tests** (in a separate terminal):
+### End-to-End Tests (Cloud)
 ```bash
-./scripts/test-functions.sh local         # Basic CRUD operations
-./scripts/test-business-rules.sh local    # Domain business rules
-./scripts/run-tests.sh local              # All test suites
+# Test deployed functions
+./scripts/test-functions.sh gcp    # or aws
+./scripts/test-business-rules.sh gcp  # or aws
 ```
 
-### Testing GCP Deployment
+## 📊 Testing Business Rules
 
-**Prerequisites**: Deploy infrastructure first
-```bash
-cd terraform/gcp && terraform apply
-```
-
-**Quick Deployment Validation**:
-```bash
-./scripts/validate-deployment.sh         # Smoke test deployment status
-```
-
-This script performs a quick validation of your GCP deployment by:
-- Checking Terraform deployment status
-- Validating function URL accessibility  
-- Testing basic function calls
-- Verifying GCP resources (Cloud Functions, Firestore)
-
-**Then run comprehensive tests**:
-```bash
-./scripts/test-functions.sh gcp           # Basic CRUD operations
-./scripts/test-business-rules.sh gcp      # Domain business rules
-./scripts/run-tests.sh gcp                # All test suites
-```
-
-### Auto-Detection Testing
-
-The scripts can automatically detect which environment is available and ready:
-```bash
-# Automatically detects running local server OR deployed GCP function
-./scripts/test-functions.sh              # Auto-detect environment
-./scripts/test-business-rules.sh         # Auto-detect environment
-./scripts/run-tests.sh                   # Auto-detect environment
-```
-
-**Note**: Auto-detection works by checking:
-1. If local server is running (http://localhost:8080/actuator/health)
-2. If GCP function is deployed (terraform output)
-3. Fails if neither environment is available
-
-### Manual Testing Examples
-
-After deployment, get your function URL from Terraform output:
+The project includes comprehensive tests to validate business rules work identically across clouds:
 
 ```bash
-# Get the function URL
-FUNCTION_URL=$(cd terraform/gcp && terraform output -raw function_url)
-echo "Function URL: $FUNCTION_URL"
-```
-
-#### Create Task
-```bash
+# Test high-priority task limit (max 5 per day)
 curl -X POST "$FUNCTION_URL" \
   -H "Content-Type: application/json" \
   -H "function.name: createTask" \
-  -d '{
-    "userId": "user123",
-    "description": "Complete project documentation",
-    "priority": "HIGH"
-  }'
+  -d '{"userId":"user123","description":"Task 6","priority":"HIGH"}'
+
+# Expected Response (HTTP 422):
+{
+  "status": 422,
+  "errors": [{
+    "code": "BUSINESS_RULE_VIOLATION",
+    "message": "Cannot create more than 5 high priority tasks per day"
+  }]
+}
 ```
 
-#### Get Task by ID
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "function.name: getTaskById" \
-  -d '{
-    "id": "your-task-id-here",
-    "userId": "user123"
-  }'
-```
+## 🔧 Development Workflows
 
-#### List Tasks
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "function.name: listTasksByUser" \
-  -d '{
-    "userId": "user123",
-    "page": 0,
-    "size": 10
-  }'
-```
+### Adding New Cloud Provider
 
-#### Update Task
-```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "function.name: updateTask" \
-  -d '{
-    "id": "your-task-id-here",
-    "userId": "user123",
-    "description": "Updated task description",
-    "priority": "MEDIUM",
-    "status": "COMPLETED"
-  }'
-```
+1. **Create outbound adapter** in `src/main/java/com/example/tasks/adapters/outbound/{provider}/`
+2. **Implement** `TaskRepositoryPort` interface
+3. **Add Maven profile** with provider-specific dependencies
+4. **Create infrastructure** in `terraform/{provider}/`
+5. **Update test scripts** to support new provider
 
-#### Delete Task
+### Local Development
+
 ```bash
-curl -X POST "$FUNCTION_URL" \
-  -H "Content-Type: application/json" \
-  -H "function.name: deleteTask" \
-  -d '{
-    "id": "your-task-id-here",
-    "userId": "user123"
-  }'
+# Run with in-memory repository
+mvn spring-boot:run -Dspring.profiles.active=local
+
+# Run with cloud-specific profile locally (requires setup)
+mvn spring-boot:run -Dspring.profiles.active=gcp-local
+mvn spring-boot:run -Dspring.profiles.active=aws-local
 ```
 
 ## 📁 Project Structure
@@ -256,120 +234,83 @@ curl -X POST "$FUNCTION_URL" \
 ```
 ├── src/
 │   ├── main/java/com/example/tasks/
-│   │   ├── domain/                     # Domain layer (entities, value objects)
-│   │   ├── application/                # Application layer (use cases, services)
-│   │   │   ├── port/                   # Port interfaces
-│   │   │   └── service/                # Application services
-│   │   ├── adapters/                   # Infrastructure layer
-│   │   │   ├── inbound/functions/      # Inbound adapters (Cloud Functions)
-│   │   │   └── outbound/               # Outbound adapters (repositories)
-│   │   └── config/                     # Configuration classes
-│   ├── resources/                      # Configuration files
-│   └── test/                           # Tests including architecture validation
-├── scripts/                           # Testing and utility scripts
-│   ├── test-functions.sh              # Basic CRUD function tests
-│   ├── test-business-rules.sh         # Domain business rules tests
-│   ├── test-common.sh                 # Shared testing utilities
-│   ├── run-tests.sh                   # Master test runner
-│   └── validate-deployment.sh         # Deployment validation
-├── terraform/gcp/                     # GCP Infrastructure as Code
-└── target/                            # Build artifacts
+│   │   ├── domain/                 # Business logic (cloud-agnostic)
+│   │   ├── application/            # Use cases and orchestration
+│   │   └── adapters/              # Infrastructure implementations
+│   └── test/                      # Unit and integration tests
+├── terraform/
+│   ├── gcp/                       # Google Cloud infrastructure
+│   └── aws/                       # AWS infrastructure
+├── scripts/                       # Testing and deployment scripts
+├── ARTICLE-GCP.md                 # Part 1: GCP implementation guide
+├── ARTICLE-AWS.md                 # Part 2: AWS implementation guide
+└── README.md                      # This file
 ```
 
-## 🎯 Architecture Validation
+## 🎨 Key Features
 
-The project includes comprehensive architecture tests that validate:
+### Cloud-Agnostic Business Logic
+- Domain entities with embedded business rules
+- Value objects for type safety
+- Domain services for complex validations
+- Zero cloud-specific dependencies in domain layer
 
-- **Hexagonal Architecture** compliance
-- **DDD** layer separation
-- **Dependency injection** patterns
-- **Port-Adapter** pattern implementation
-- **SOLID principles** adherence
+### Infrastructure Flexibility
+- Repository pattern with cloud-specific implementations
+- Spring profiles for environment-specific configuration
+- Infrastructure as Code for repeatable deployments
+- Comprehensive test coverage across environments
 
-Run architecture validation:
-```bash
-mvn test -Dtest="ArchitectureTest"
-# or run all Maven tests (includes architecture tests)
-mvn test
-```
+### Developer Experience
+- Single command deployment to any cloud
+- Consistent testing across local and cloud environments
+- Architecture validation to maintain clean design
+- Comprehensive documentation and examples
 
-## 🔧 Development
+## 🌟 Architecture Benefits
 
-### Development Workflow
+### True Portability
+- **Same JAR** deploys to multiple clouds
+- **Zero business logic changes** when switching providers
+- **Consistent behavior** across all environments
 
-1. **Start Local Development**:
-   ```bash
-   mvn spring-boot:run -Dspring.profiles.active=local
-   ```
+### Maintainability
+- **Clear separation of concerns** with hexagonal architecture
+- **Domain-driven design** keeps business logic explicit
+- **SOLID principles** make code easy to extend and modify
 
-2. **Run Tests During Development**:
-   ```bash
-   ./scripts/test-functions.sh local      # Test basic functions
-   ./scripts/test-business-rules.sh local # Test business rules
-   ```
+### Testability
+- **Domain logic** can be tested in isolation
+- **Infrastructure adapters** can be easily mocked
+- **End-to-end tests** validate behavior across clouds
 
-3. **Validate Architecture**:
-   ```bash
-   mvn test -Dtest="ArchitectureTest"
-   ```
+## 📚 Learning Resources
 
-### Adding New Features
-
-1. **Domain First**: Start with domain entities and business rules
-2. **Ports**: Define application port interfaces  
-3. **Services**: Implement application services
-4. **Adapters**: Create inbound and outbound adapters
-5. **Tests**: Write comprehensive tests including architecture validation
-
-### Code Quality
-
-- Follow SOLID principles
-- Maintain clear separation of concerns
-- Write comprehensive tests
-- Use meaningful domain language
-- Validate architecture constraints
-
-## 🛠️ Troubleshooting
-
-### Common Issues
-
-1. **Build Failures**: Ensure Java 21 is installed and configured
-2. **Local Tests Failing**: Make sure local server is running first
-3. **GCP Authentication**: Verify you're logged in with `gcloud auth list`
-4. **Billing Issues**: Ensure billing is enabled for your GCP project
-5. **Permission Errors**: Check that required APIs are enabled
-6. **Function Routing Issues**: Verify `function.name` header is included in requests
-
-### Getting Help
-
-- Check local application logs during development
-- Check GCP Cloud Functions logs: `gcloud functions logs read task-management-dev --region=us-central1`
-- Review Terraform state: `terraform show`
-- Validate architecture tests for design compliance
-- Check Firestore indexes in the GCP Console
-
-## 🧹 Cleanup
-
-To remove all deployed resources:
-
-```bash
-cd terraform/gcp
-terraform destroy
-```
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- **[Part 1: GCP Implementation](ARTICLE-GCP.md)** - Complete guide to GCP deployment
+- **[Part 2: AWS Implementation](ARTICLE-AWS.md)** - AWS Lambda and DynamoDB setup
+- **[GCP Intro](gcp-intro.md)** - Spring Cloud Function GCP documentation
+- **[AWS Intro](aws-intro.md)** - Spring Cloud Function AWS documentation
 
 ## 🤝 Contributing
 
 1. Fork the repository
 2. Create a feature branch
-3. Follow the established architecture patterns
-4. Add comprehensive tests
-5. Ensure architecture validation passes
-6. Submit a pull request
+3. Add tests for new functionality
+4. Ensure architecture tests pass
+5. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🎯 Next Steps
+
+- [ ] **Azure Functions implementation** with Cosmos DB
+- [ ] **Performance benchmarking** across cloud providers
+- [ ] **Cost analysis** and optimization guides
+- [ ] **CI/CD pipelines** for automated deployment
+- [ ] **Monitoring and observability** setup for each cloud
 
 ---
 
-**Note**: This is a multi-cloud demonstration project showcasing Hexagonal Architecture and DDD principles in serverless environments. Currently implemented for Google Cloud Platform, with planned expansions to AWS and Azure to demonstrate true cloud-agnostic architecture patterns.
+**Built with ❤️ to demonstrate the power of cloud-agnostic architecture using Spring Cloud Function and Hexagonal Architecture.**
