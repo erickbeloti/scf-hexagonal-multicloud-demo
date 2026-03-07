@@ -72,6 +72,18 @@
             <artifactId>spring-cloud-aws-starter-dynamodb</artifactId>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>com.azure.spring</groupId>
+            <artifactId>spring-cloud-azure-starter-data-cosmos</artifactId>
+            <version>5.19.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.microsoft.azure.functions</groupId>
+            <artifactId>azure-functions-java-library</artifactId>
+            <version>3.1.0</version>
+            <scope>provided</scope>
+        </dependency>
 
         <!-- Test dependencies -->
         <dependency>
@@ -232,6 +244,140 @@
             <properties>
                 <spring.profiles.active>local</spring.profiles.active>
             </properties>
+        </profile>
+
+        <profile>
+            <id>azure</id>
+            <properties>
+                <spring.profiles.active>azure</spring.profiles.active>
+                <classifier>azure</classifier>
+                <spring-cloud-azure.version>5.19.0</spring-cloud-azure.version>
+                <azure-functions-java-library.version>3.1.0</azure-functions-java-library.version>
+                <azure-functions-maven-plugin.version>1.32.0</azure-functions-maven-plugin.version>
+                <spring-boot-thin-layout.version>1.0.31.RELEASE</spring-boot-thin-layout.version>
+                <functionAppName>task-management-azure</functionAppName>
+                <functionAppRegion>brazilsouth</functionAppRegion>
+                <functionResourceGroup>rg-tasks-dev</functionResourceGroup>
+                <start-class>com.example.tasks.TaskApplication</start-class>
+            </properties>
+            <dependencyManagement>
+                <dependencies>
+                    <dependency>
+                        <groupId>com.azure.spring</groupId>
+                        <artifactId>spring-cloud-azure-dependencies</artifactId>
+                        <version>${spring-cloud-azure.version}</version>
+                        <type>pom</type>
+                        <scope>import</scope>
+                    </dependency>
+                </dependencies>
+            </dependencyManagement>
+            <dependencies>
+                <!-- Spring Cloud Function Adapter for Azure -->
+                <dependency>
+                    <groupId>org.springframework.cloud</groupId>
+                    <artifactId>spring-cloud-function-adapter-azure</artifactId>
+                    <scope>compile</scope>
+                </dependency>
+
+                <!-- Azure Functions Java Library -->
+                <dependency>
+                    <groupId>com.microsoft.azure.functions</groupId>
+                    <artifactId>azure-functions-java-library</artifactId>
+                    <version>${azure-functions-java-library.version}</version>
+                    <scope>compile</scope>
+                </dependency>
+
+                <!-- Azure Spring Data Cosmos for persistence -->
+                <dependency>
+                    <groupId>com.azure.spring</groupId>
+                    <artifactId>spring-cloud-azure-starter-data-cosmos</artifactId>
+                    <scope>compile</scope>
+                </dependency>
+            </dependencies>
+            <build>
+                <finalName>${project.artifactId}-${project.version}</finalName>
+                <plugins>
+                    <!-- Spring Boot Maven Plugin with thin layout for Azure compatibility -->
+                    <plugin>
+                        <groupId>org.springframework.boot</groupId>
+                        <artifactId>spring-boot-maven-plugin</artifactId>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.springframework.boot.experimental</groupId>
+                                <artifactId>spring-boot-thin-layout</artifactId>
+                                <version>${spring-boot-thin-layout.version}</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+
+                    <!-- Azure Functions Maven Plugin - generates to target/azure-functions -->
+                    <plugin>
+                        <groupId>com.microsoft.azure</groupId>
+                        <artifactId>azure-functions-maven-plugin</artifactId>
+                        <version>${azure-functions-maven-plugin.version}</version>
+                        <configuration>
+                            <appName>${functionAppName}</appName>
+                            <resourceGroup>${functionResourceGroup}</resourceGroup>
+                            <region>${functionAppRegion}</region>
+                            <pricingTier>Consumption</pricingTier>
+                            <hostJson>${project.basedir}/src/main/azure/host.json</hostJson>
+                            <runtime>
+                                <os>linux</os>
+                                <javaVersion>21</javaVersion>
+                            </runtime>
+                            <appSettings>
+                                <property>
+                                    <name>FUNCTIONS_EXTENSION_VERSION</name>
+                                    <value>~4</value>
+                                </property>
+                                <property>
+                                    <name>SPRING_PROFILES_ACTIVE</name>
+                                    <value>azure</value>
+                                </property>
+                                <property>
+                                    <name>MAIN_CLASS</name>
+                                    <value>com.example.tasks.TaskApplication</value>
+                                </property>
+                            </appSettings>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>package-functions</id>
+                                <goals>
+                                    <goal>package</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Copy Azure Functions output to target/deploy for consistency with AWS/GCP -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>copy-azure-functions-to-deploy</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}/deploy</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>${project.build.directory}/azure-functions/${functionAppName}</directory>
+                                            <includes>
+                                                <include>**/*</include>
+                                            </includes>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
         </profile>
     </profiles>
 </project>
