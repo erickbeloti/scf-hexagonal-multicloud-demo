@@ -92,6 +92,7 @@
                 "iam:PassRole",
                 "iam:ListAttachedRolePolicies",
                 "iam:ListRolePolicies",
+                "iam:ListInstanceProfilesForRole",
                 "iam:UpdateRole"
             ],
             "Resource": "arn:aws:iam::*:role/task-management-*"
