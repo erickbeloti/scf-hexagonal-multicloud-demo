@@ -48,6 +48,7 @@ src/main/java/com/example/tasks/
     └── outbound/
         ├── gcp/                    # Google Cloud Firestore implementation
         ├── aws/                    # AWS DynamoDB implementation
+        ├── azure/                  # Azure Cosmos DB implementation
         └── local/                  # In-memory implementation for testing
 ```
 
@@ -76,7 +77,7 @@ The Task Management System enforces these domain rules across all cloud provider
 |---------------|--------|---------|----------|----------------|
 | **Google Cloud Platform** | ✅ Implemented | Cloud Functions Gen2 | Firestore | Terraform |
 | **Amazon Web Services** | ✅ Implemented | Lambda | DynamoDB | Terraform |
-| **Microsoft Azure** | 🚧 Planned | Functions | Cosmos DB | Terraform |
+| **Microsoft Azure** | ✅ Implemented | Functions | Cosmos DB | Terraform |
 
 ### Cloud-Specific Implementations
 
@@ -92,6 +93,12 @@ The Task Management System enforces these domain rules across all cloud provider
 - **Infrastructure**: Terraform with API Gateway integration
 - **Entry Point**: `FunctionInvoker::handleRequest`
 
+#### Microsoft Azure
+- **Runtime**: Azure Functions (Consumption Plan) with Java 21
+- **Database**: Cosmos DB (NoSQL / Serverless)
+- **Infrastructure**: Terraform with Function App integration
+- **Entry Point**: `AzureFunctionHandler` (custom HTTP trigger)
+
 ## 📋 Prerequisites
 
 - **Java 21** or higher
@@ -99,6 +106,7 @@ The Task Management System enforces these domain rules across all cloud provider
 - **Cloud CLI Tools**:
   - Google Cloud CLI (`gcloud`) for GCP deployment
   - AWS CLI (`aws`) for AWS deployment
+  - Azure CLI (`az`) for Azure deployment
 - **Terraform 1.0+** for infrastructure deployment
 
 ## 🚀 Quick Start
@@ -158,6 +166,23 @@ cd ../..
 ./scripts/test-business-rules.sh aws
 ```
 
+#### Microsoft Azure
+
+```bash
+# Build for Azure
+mvn clean package -Pazure
+
+# Deploy infrastructure
+cd terraform/azure
+terraform init
+terraform apply
+
+# Test deployment
+cd ../..
+./scripts/test-functions.sh azure
+./scripts/test-business-rules.sh azure
+```
+
 ## 🧪 Testing
 
 ### Unit Tests
@@ -183,8 +208,8 @@ mvn spring-boot:run -Dspring.profiles.active=local
 ### End-to-End Tests (Cloud)
 ```bash
 # Test deployed functions
-./scripts/test-functions.sh gcp    # or aws
-./scripts/test-business-rules.sh gcp  # or aws
+./scripts/test-functions.sh gcp      # or aws, azure
+./scripts/test-business-rules.sh gcp  # or aws, azure
 ```
 
 ## 📊 Testing Business Rules
@@ -240,10 +265,12 @@ mvn spring-boot:run -Dspring.profiles.active=aws-local
 │   └── test/                      # Unit and integration tests
 ├── terraform/
 │   ├── gcp/                       # Google Cloud infrastructure
-│   └── aws/                       # AWS infrastructure
+│   ├── aws/                       # AWS infrastructure
+│   └── azure/                     # Azure infrastructure
 ├── scripts/                       # Testing and deployment scripts
 ├── ARTICLE-GCP.md                 # Part 1: GCP implementation guide
 ├── ARTICLE-AWS.md                 # Part 2: AWS implementation guide
+├── ARTICLE-AZURE.md               # Part 3: Azure implementation guide
 └── README.md                      # This file
 ```
 
@@ -288,8 +315,7 @@ mvn spring-boot:run -Dspring.profiles.active=aws-local
 
 - **[Part 1: GCP Implementation](ARTICLE-GCP.md)** - Complete guide to GCP deployment
 - **[Part 2: AWS Implementation](ARTICLE-AWS.md)** - AWS Lambda and DynamoDB setup
-- **[GCP Intro](gcp-intro.md)** - Spring Cloud Function GCP documentation
-- **[AWS Intro](aws-intro.md)** - Spring Cloud Function AWS documentation
+- **[Part 3: Azure Implementation](ARTICLE-AZURE.md)** - Azure Functions and Cosmos DB setup
 
 ## 🤝 Contributing
 
@@ -305,7 +331,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🎯 Next Steps
 
-- [ ] **Azure Functions implementation** with Cosmos DB
 - [ ] **Performance benchmarking** across cloud providers
 - [ ] **Cost analysis** and optimization guides
 - [ ] **CI/CD pipelines** for automated deployment
