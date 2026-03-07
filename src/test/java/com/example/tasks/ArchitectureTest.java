@@ -68,7 +68,9 @@ class ArchitectureTest {
                     .resideInAnyPackage("..application.port.inbound..", "..domain..",
                                       "java..", "org.springframework..", "..dto..",
                                       "jakarta..", "com.example.tasks.application.service..",
-                                      "..infrastructure..");
+                                      "..infrastructure..",
+                                      "com.microsoft.azure.functions..",
+                                      "com.fasterxml.jackson..");
 
             rule.check(importedClasses);
         }
@@ -160,7 +162,7 @@ class ArchitectureTest {
                     .layer("Domain").definedBy("..domain..")
                     .layer("Application").definedBy("..application..")
                     .layer("Adapters").definedBy("..adapters..")
-                    .layer("Config").definedBy("..config..")
+                    .layer("Config").definedBy("com.example.tasks.config..")
 
                     .whereLayer("Domain").mayNotAccessAnyLayer()
                     .whereLayer("Application").mayOnlyAccessLayers("Domain")

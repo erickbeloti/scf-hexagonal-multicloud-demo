@@ -8,6 +8,7 @@ set -e
 DEFAULT_LOCAL_URL="http://localhost:8080"
 DEFAULT_GCP_URL=""
 DEFAULT_AWS_URL=""
+DEFAULT_AZURE_URL=""
 FUNCTION_URL=""
 TEST_MODE=""
 
@@ -61,6 +62,11 @@ detect_test_environment() {
             get_aws_function_url
             print_info "Testing mode: AWS ($FUNCTION_URL)"
             ;;
+        "azure")
+            TEST_MODE="azure"
+            get_azure_function_url
+            print_info "Testing mode: AZURE ($FUNCTION_URL)"
+            ;;
         "auto")
             # Try to detect automatically
             if check_local_server; then
@@ -73,17 +79,21 @@ detect_test_environment() {
             elif get_aws_function_url; then
                 TEST_MODE="aws"
                 print_info "Auto-detected mode: AWS ($FUNCTION_URL)"
+            elif get_azure_function_url; then
+                TEST_MODE="azure"
+                print_info "Auto-detected mode: AZURE ($FUNCTION_URL)"
             else
                 print_error "Could not detect test environment."
                 print_info "Make sure either:"
                 print_info "  - Local server is running: mvn spring-boot:run -Dspring.profiles.active=local"
                 print_info "  - GCP function is deployed: cd terraform/gcp && terraform apply"
                 print_info "  - AWS function is deployed: cd terraform/aws && terraform apply"
+                print_info "  - Azure function is deployed: cd terraform/azure && terraform apply"
                 exit 1
             fi
             ;;
         *)
-            print_error "Invalid test mode: $mode. Use 'local', 'gcp', 'aws', or 'auto'"
+            print_error "Invalid test mode: $mode. Use 'local', 'gcp', 'aws', 'azure', or 'auto'"
             exit 1
             ;;
     esac
@@ -124,6 +134,24 @@ get_aws_function_url() {
     return 0
 }
 
+get_azure_function_url() {
+    if [ -d "terraform/azure" ]; then
+        cd terraform/azure
+        local base_url=$(terraform output -raw function_url 2>/dev/null || echo "")
+        # Azure Function App URL needs /api/tasks suffix
+        FUNCTION_URL="${base_url}/api/tasks"
+        cd - > /dev/null
+    fi
+
+    if [ -z "$FUNCTION_URL" ] || [ "$FUNCTION_URL" = "/api/tasks" ]; then
+        print_warning "Could not get Azure function URL from Terraform."
+        FUNCTION_URL=""
+        return 1
+    fi
+
+    return 0
+}
+
 call_function() {
     local function_name=$1
     local payload=$2
@@ -133,6 +161,8 @@ call_function() {
         call_function_local "$function_name" "$payload" "$expected_status"
     elif [ "$TEST_MODE" = "gcp" ]; then
         call_function_gcp "$function_name" "$payload" "$expected_status"
+    elif [ "$TEST_MODE" = "azure" ]; then
+        call_function_azure "$function_name" "$payload" "$expected_status"
     else
         call_function_aws "$function_name" "$payload" "$expected_status"
     fi
@@ -179,6 +209,20 @@ call_function_aws() {
         -d "$payload")
 
     parse_response_and_check_status_aws "$function_name" "$expected_status"
+}
+
+call_function_azure() {
+    local function_name=$1
+    local payload=$2
+    local expected_status=${3:-200}
+
+    response=$(curl -s -w "\n%{http_code}" \
+        -X POST "$FUNCTION_URL" \
+        -H "Content-Type: application/json" \
+        -H "function.name: $function_name" \
+        -d "$payload")
+
+    parse_response_and_check_status_azure "$function_name" "$expected_status"
 }
 
 parse_response_and_check_status_local() {
@@ -239,6 +283,21 @@ parse_response_and_check_status_aws() {
     fi
 }
 
+parse_response_and_check_status_azure() {
+    local function_name=$1
+    local expected_status=$2
+
+    http_code=$(echo "$response" | tail -n1)
+    response_body=$(echo "$response" | head -n -1)
+
+    # For Azure, check HTTP status code (set by AzureFunctionHandler)
+    if [ "$http_code" -eq "$expected_status" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 parse_response_and_check_status() {
     local function_name=$1
     local expected_status=$2
@@ -280,6 +339,15 @@ validate_test_environment() {
                 print_success "AWS function is accessible"
             fi
             ;;
+        "azure")
+            # Test Azure function accessibility with a simple request
+            if ! curl -s -f "$FUNCTION_URL" > /dev/null 2>&1; then
+                print_warning "Azure function may not be accessible or deployed"
+                print_info "Make sure: cd terraform/azure && terraform apply"
+            else
+                print_success "Azure function is accessible"
+            fi
+            ;;
     esac
 }
 
@@ -318,7 +386,7 @@ print_test_summary() {
 }
 
 show_usage() {
-    echo "Usage: $0 [local|gcp|aws|auto]"
+    echo "Usage: $0 [local|gcp|aws|azure|auto]"
     echo ""
     echo "Test modes:"
     echo "  local  - Test against local Spring Boot server (http://localhost:8080)"
@@ -327,11 +395,14 @@ show_usage() {
     echo "           Prerequisites: cd terraform/gcp && terraform apply"
     echo "  aws    - Test against deployed AWS Lambda Function"
     echo "           Prerequisites: cd terraform/aws && terraform apply"
+    echo "  azure  - Test against deployed Azure Function App"
+    echo "           Prerequisites: cd terraform/azure && terraform apply"
     echo "  auto   - Auto-detect available environment (default)"
     echo ""
     echo "Examples:"
     echo "  $0 local   # Test locally (server must be running)"
     echo "  $0 gcp     # Test GCP deployment"
     echo "  $0 aws     # Test AWS deployment"
+    echo "  $0 azure   # Test Azure deployment"
     echo "  $0         # Auto-detect environment"
 }

@@ -1,0 +1,26 @@
+azure:
+  cosmos:
+    uri: ${AZURE_COSMOS_URI}
+    key: ${AZURE_COSMOS_KEY}
+    database: ${AZURE_COSMOS_DATABASE:tasks-db}
+    queryMetricsEnabled: ${AZURE_COSMOS_QUERY_METRICS:false}
+
+spring:
+  cloud:
+    function:
+      definition: functionRouter
+    azure:
+      cosmos:
+        endpoint: ${AZURE_COSMOS_URI}
+        key: ${AZURE_COSMOS_KEY}
+        database: ${AZURE_COSMOS_DATABASE:tasks-db}
+
+functions:
+  provider: azure
+  status-header: statusCode
+
+logging:
+  level:
+    com.azure.cosmos: WARN
+    com.example.tasks: DEBUG
+
